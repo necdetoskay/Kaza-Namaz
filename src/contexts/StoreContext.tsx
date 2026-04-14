@@ -27,72 +27,80 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const reducePrayer = (type: PrayerType, amount: number) => {
     if (!data) return;
 
-    setData((prev) => {
-      if (!prev) return prev;
-      
-      const currentAmount = prev.prayers[type];
-      const newAmount = Math.max(0, currentAmount - amount);
-      const difference = currentAmount - newAmount;
+    try {
+      setData((prev) => {
+        if (!prev) return prev;
+        
+        const currentAmount = prev.prayers[type];
+        const newAmount = Math.max(0, currentAmount - amount);
+        const difference = currentAmount - newAmount;
 
-      if (difference === 0) return prev;
+        if (difference === 0) return prev;
 
-      const newLog = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        type,
-        amount: difference,
-      };
+        const newLog = {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          type,
+          amount: difference,
+        };
 
-      const newData: AppData = {
-        ...prev,
-        prayers: {
-          ...prev.prayers,
-          [type]: newAmount,
-        },
-        stats: {
-          ...prev.stats,
-          totalCompleted: prev.stats.totalCompleted + difference,
-        },
-        history: [newLog, ...(prev.history || [])],
-      };
+        const newData: AppData = {
+          ...prev,
+          prayers: {
+            ...prev.prayers,
+            [type]: newAmount,
+          },
+          stats: {
+            ...prev.stats,
+            totalCompleted: prev.stats.totalCompleted + difference,
+          },
+          history: [newLog, ...(prev.history || [])],
+        };
 
-      DataService.save(newData);
-      return newData;
-    });
+        DataService.save(newData);
+        return newData;
+      });
+    } catch (error) {
+      console.error('reducePrayer failed:', error);
+    }
   };
 
   const undoPrayer = (type: PrayerType, amount: number) => {
     if (!data) return;
 
-    setData((prev) => {
-      if (!prev) return prev;
-      
-      const currentAmount = prev.prayers[type];
-      const newAmount = currentAmount + amount;
+    try {
+      setData((prev) => {
+        if (!prev) return prev;
+        
+        const currentAmount = prev.prayers[type];
+        const newAmount = currentAmount + amount;
 
-      const newLog = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        type,
-        amount: -amount,
-      };
+        const newLog = {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          type,
+          amount: -amount,
+        };
 
-      const newData: AppData = {
-        ...prev,
-        prayers: {
-          ...prev.prayers,
-          [type]: newAmount,
-        },
-        stats: {
-          ...prev.stats,
-          totalCompleted: Math.max(0, prev.stats.totalCompleted - amount),
-        },
-        history: [newLog, ...(prev.history || [])],
-      };
+        const newData: AppData = {
+          ...prev,
+          prayers: {
+            ...prev.prayers,
+            [type]: newAmount,
+          },
+          stats: {
+            ...prev.stats,
+            totalCompleted: Math.max(0, prev.stats.totalCompleted - amount),
+          },
+          history: [newLog, ...(prev.history || [])],
+        };
 
-      DataService.save(newData);
-      return newData;
-    });
+        DataService.save(newData);
+        return newData;
+      });
+    } catch (error) {
+      console.error('undoPrayer failed:', error);
+    }
   };
 
   const updateDailyTarget = (target: number) => {
