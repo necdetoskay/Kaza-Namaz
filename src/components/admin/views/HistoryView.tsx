@@ -46,7 +46,7 @@ export function HistoryView() {
         </div>
       ) : (
         <div className="space-y-8">
-          {Object.entries(groupedHistory).map(([date, logs]) => (
+          {(Object.entries(groupedHistory) as [string, PrayerLog[]][]).map(([date, logs]) => (
             <div key={date} className="space-y-4">
               <div className="flex items-center gap-2 text-tertiary">
                 <CalendarDays className="w-5 h-5" />

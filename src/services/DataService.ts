@@ -41,5 +41,67 @@ export const DataService = {
   reset: (): AppData => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DATA));
     return INITIAL_DATA;
+  },
+
+  /**
+   * Mevcut veriyi JSON dosyası olarak dışa aktarır.
+   */
+  exportToFile: (): void => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (!data) {
+        alert('Dışa aktarılacak veri bulunamadı.');
+        return;
+      }
+      
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `kaza-namaz-yedek-${date}.json`;
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Dışa aktarma hatası:', error);
+      alert('Veri dışa aktarılamadı.');
+    }
+  },
+
+  /**
+   * JSON dosyasından veri içe aktarır ve localStorage'a kaydeder.
+   */
+  importFromFile: (file: File): Promise<{ success: boolean; message: string }> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const parsed = JSON.parse(content) as AppData;
+          
+          // Basic validation
+          if (!parsed.prayers || !parsed.user || !parsed.stats) {
+            resolve({ success: false, message: 'Geçersiz yedekleme dosyası.' });
+            return;
+          }
+          
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          resolve({ success: true, message: 'Veriler başarıyla geri yüklendi. Sayfayı yenileyin.' });
+        } catch {
+          resolve({ success: false, message: 'Dosya okunamadı veya bozuk.' });
+        }
+      };
+      
+      reader.onerror = () => {
+        resolve({ success: false, message: 'Dosya okunamadı.' });
+      };
+      
+      reader.readAsText(file);
+    });
   }
 };

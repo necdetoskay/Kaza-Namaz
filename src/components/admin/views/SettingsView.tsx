@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef, type ChangeEvent } from 'react';
 import { useStore } from '../../../hooks/useStore';
-import { Save, RefreshCw } from 'lucide-react';
+import { Save, RefreshCw, Download, Upload } from 'lucide-react';
+import { DataService } from '../../../services/DataService';
 
 export function SettingsView() {
   const { data, updateDailyTarget, resetData } = useStore();
   const [target, setTarget] = useState(data.user.dailyTarget.toString());
   const [saved, setSaved] = useState(false);
+  const [importMessage, setImportMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     const num = parseInt(target, 10);
@@ -16,6 +19,33 @@ export function SettingsView() {
     }
   };
 
+  const handleExport = () => {
+    DataService.exportToFile();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await DataService.importFromFile(file);
+    setImportMessage({
+      type: result.success ? 'success' : 'error',
+      text: result.message
+    });
+
+    // Clear the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Clear message after 5 seconds
+    setTimeout(() => setImportMessage(null), 5000);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <section className="space-y-1">
@@ -24,6 +54,26 @@ export function SettingsView() {
       </section>
 
       <div className="bg-surface-container-lowest rounded-3xl p-6 shadow-sm border border-outline-variant/10 space-y-6">
+        {/* Hidden file input for import */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Import result message */}
+        {importMessage && (
+          <div className={`p-3 rounded-xl text-sm font-medium ${
+            importMessage.type === 'success' 
+              ? 'bg-secondary/10 text-secondary' 
+              : 'bg-error/10 text-error'
+          }`}>
+            {importMessage.text}
+          </div>
+        )}
+
         <div>
           <h3 className="font-bold text-lg text-on-surface mb-4">Günlük Hedef</h3>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -42,6 +92,30 @@ export function SettingsView() {
             </button>
           </div>
           <p className="text-xs text-tertiary mt-2">Günlük kılmayı hedeflediğiniz kaza namazı vakit sayısı.</p>
+        </div>
+
+        <hr className="border-outline-variant/20" />
+
+        {/* Yedekleme Alanı */}
+        <div>
+          <h3 className="font-bold text-lg text-on-surface mb-4">Yedekleme</h3>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={handleExport}
+              className="flex-1 bg-primary/10 text-primary h-14 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-primary/20 transition-colors active:scale-95"
+            >
+              <Download className="w-5 h-5" />
+              <span>Yedekle</span>
+            </button>
+            <button 
+              onClick={handleImportClick}
+              className="flex-1 bg-surface-container hover:bg-surface-container-high h-14 rounded-2xl font-bold flex items-center justify-center gap-2 text-on-surface transition-colors active:scale-95 border border-outline-variant/20"
+            >
+              <Upload className="w-5 h-5" />
+              <span>Geri Yükle</span>
+            </button>
+          </div>
+          <p className="text-xs text-tertiary mt-2">Yedeğinizi JSON dosyası olarak kaydedin. Geri yüklemek için dosyayı seçin.</p>
         </div>
 
         <hr className="border-outline-variant/20" />

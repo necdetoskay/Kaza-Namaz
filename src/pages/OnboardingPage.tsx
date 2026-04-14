@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Sparkles, Calculator, Calendar, User, Leaf } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
 import { PrayerCounts, UserProfile } from '../types';
@@ -10,7 +10,7 @@ export default function OnboardingPage() {
   const [birthDate, setBirthDate] = useState('');
   const [startDate, setStartDate] = useState('');
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
+  const handleDateChange = (e: ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     let val = e.target.value;
     val = val.replace(/\D/g, '');
     if (val.length > 8) val = val.slice(0, 8);
@@ -31,7 +31,7 @@ export default function OnboardingPage() {
     return new Date(`${year}-${month}-${day}`);
   };
 
-  const handleCalculate = (e: React.FormEvent) => {
+  const handleCalculate = (e: FormEvent) => {
     e.preventDefault();
     if (!gender || !birthDate || !startDate) {
       alert('Lütfen tüm alanları doldurun.');
