@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Search, Sparkles, Gavel, BookOpen, Droplets, UserRound, Plane, ChevronRight, Edit3, AlertCircle, Car, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 export function LibraryView() {
-  const [activeArticle, setActiveArticle] = useState<{title: string, content: React.ReactNode} | null>(null);
+  const [activeArticle, setActiveArticle] = useState<{title: string, content: ReactNode} | null>(null);
 
   const articles = {
     niyet: {

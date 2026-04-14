@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ElementType, type ReactNode } from 'react';
 import { Zap, Sunrise, Sun, SunMedium, Sunset, Moon, Star, Leaf, Infinity, Timer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../../hooks/useStore';
@@ -10,11 +10,12 @@ export function DashboardView() {
   const { data, reducePrayer, undoPrayer } = useStore();
   const [clickAnimations, setClickAnimations] = useState<{id: number, type: PrayerType, amount: number}[]>([]);
   
-  const totalRemaining = Object.values(data.prayers).reduce((a, b) => a + b, 0);
+  const prayerValues = Object.values(data.prayers) as number[];
+  const totalRemaining = prayerValues.reduce((a, b) => a + b, 0);
   const totalInitial = 720 + 840 + 840 + 820 + 850 + 450; // Mock initial total
   const percentage = Math.max(0, Math.min(100, Math.round(((totalInitial - totalRemaining) / totalInitial) * 100))) || 0;
 
-  const prayerIcons: Record<PrayerType, React.ElementType> = {
+  const prayerIcons: Record<PrayerType, ElementType> = {
     sabah: Sunrise,
     ogle: Sun,
     ikindi: SunMedium,
@@ -53,7 +54,7 @@ export function DashboardView() {
     return yesterdayCount > 0 ? yesterdayCount : 0;
   };
 
-  const formatEstimatedTime = (remaining: number, dailyRate: number): string | React.ReactNode => {
+  const formatEstimatedTime = (remaining: number, dailyRate: number): string | ReactNode => {
     if (remaining === 0) return "Tamamlandı";
     if (dailyRate <= 0) return <Infinity className="w-5 h-5 text-tertiary/70" />;
     
