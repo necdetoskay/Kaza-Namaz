@@ -1,7 +1,9 @@
 import { AppData } from '../types';
 import { INITIAL_DATA } from '../constants';
+import { validateAppData } from '../types.validation';
 
 const STORAGE_KEY = 'kaza_takibi_data';
+const MAX_HISTORY_ENTRIES = 1000;
 
 export const DataService = {
   /**
@@ -12,10 +14,15 @@ export const DataService = {
     try {
       const storedData = localStorage.getItem(STORAGE_KEY);
       if (storedData) {
-        return JSON.parse(storedData) as AppData;
+        const parsed = JSON.parse(storedData);
+        const validated = validateAppData(parsed);
+        if (validated) {
+          return validated;
+        }
+        console.warn('Invalid data in localStorage, using initial data');
       }
       
-      // Veri yoksa başlangıç verilerini yaz
+      // Veri yoksa veya geçersizse başlangıç verilerini yaz
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DATA));
       return INITIAL_DATA;
     } catch (error) {
@@ -29,7 +36,12 @@ export const DataService = {
    */
   save: (data: AppData): void => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      // Enforce history limit - keep most recent entries
+      const limitedData = {
+        ...data,
+        history: data.history?.slice(0, MAX_HISTORY_ENTRIES) ?? []
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedData));
     } catch (error) {
       console.error("Veri kaydedilirken hata oluştu.", error);
     }

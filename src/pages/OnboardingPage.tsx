@@ -1,14 +1,17 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
-import { Sparkles, Calculator, Calendar, User, Leaf } from 'lucide-react';
+import { useState, type ChangeEvent, type FormEvent, useRef } from 'react';
+import { Sparkles, Calculator, Calendar, User, Leaf, Upload } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
 import { PrayerCounts, UserProfile } from '../types';
 import { cn } from '../lib/utils';
+import { DataService } from '../services/DataService';
 
 export default function OnboardingPage() {
   const { completeOnboarding } = useStore();
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [birthDate, setBirthDate] = useState('');
   const [startDate, setStartDate] = useState('');
+  const [importMessage, setImportMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDateChange = (e: ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     let val = e.target.value;
@@ -29,6 +32,32 @@ export default function OnboardingPage() {
     const [day, month, year] = parts;
     if (year.length !== 4) return new Date('invalid');
     return new Date(`${year}-${month}-${day}`);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await DataService.importFromFile(file);
+    setImportMessage({
+      type: result.success ? 'success' : 'error',
+      text: result.message
+    });
+
+    if (result.success) {
+      // Reload the page to reflect restored data
+      setTimeout(() => window.location.reload(), 1500);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    setTimeout(() => setImportMessage(null), 5000);
   };
 
   const handleCalculate = (e: FormEvent) => {
@@ -104,6 +133,26 @@ export default function OnboardingPage() {
               Eksik kalan namazlarını güvenle takip etmen ve telafi etmen için buradayız. Öncelikle senin için küçük bir hesaplama yapalım.
             </p>
           </section>
+
+          {/* Hidden file input for import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {/* Import result message */}
+          {importMessage && (
+            <div className={`p-3 rounded-xl text-sm font-medium ${
+              importMessage.type === 'success' 
+                ? 'bg-secondary/10 text-secondary' 
+                : 'bg-error/10 text-error'
+            }`}>
+              {importMessage.text}
+            </div>
+          )}
 
           <div className="w-full bg-surface-container-lowest rounded-[2.5rem] p-8 shadow-sm border border-outline-variant/10 animate-in slide-in-from-bottom-8 duration-700 delay-150 fill-mode-both">
             <form onSubmit={handleCalculate} className="space-y-8">
@@ -188,7 +237,16 @@ export default function OnboardingPage() {
             </form>
           </div>
 
-          <footer className="mt-12 text-center relative z-10 px-8 animate-in fade-in duration-1000 delay-300">
+          <footer className="mt-8 text-center relative z-10 px-8 animate-in fade-in duration-1000 delay-300">
+            {/* Geri Yukle button */}
+            <button
+              onClick={handleImportClick}
+              className="w-full mb-6 h-12 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors active:scale-95 border border-outline-variant/20"
+            >
+              <Upload className="w-5 h-5" />
+              <span>Yedeğimi Geri Yükle</span>
+            </button>
+
             <p className="text-tertiary/60 text-xs font-medium leading-relaxed">
               Tüm verileriniz yerel olarak cihazınızda saklanır ve gizliliğiniz bizim için her şeyden önemlidir.
             </p>
