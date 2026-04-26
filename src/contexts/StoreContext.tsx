@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { AppData, PrayerType, UserProfile, PrayerCounts } from '../types';
 import { DataService } from '../services/DataService';
+import { useAuth } from './AuthContext';
 
 interface StoreContextType {
   data: AppData;
@@ -15,16 +16,26 @@ interface StoreContextType {
 export const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [data, setData] = useState<AppData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize DataService with Firebase user
   useEffect(() => {
-    const initialData = DataService.getOrInit();
-    setData(initialData);
-    setIsLoading(false);
-  }, []);
+    const init = async () => {
+      try {
+        const initialData = await DataService.initialize(user || undefined);
+        setData(initialData);
+      } catch (error) {
+        console.error('Store initialization failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, [user]);
 
-  const reducePrayer = (type: PrayerType, amount: number) => {
+  const reducePrayer = async (type: PrayerType, amount: number) => {
     if (!data) return;
 
     try {
@@ -57,7 +68,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           history: [newLog, ...(prev.history || [])],
         };
 
-        DataService.save(newData);
+        // Async save with Firebase sync
+        DataService.save(newData, user || undefined);
         return newData;
       });
     } catch (error) {
@@ -65,7 +77,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const undoPrayer = (type: PrayerType, amount: number) => {
+  const undoPrayer = async (type: PrayerType, amount: number) => {
     if (!data) return;
 
     try {
@@ -95,7 +107,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           history: [newLog, ...(prev.history || [])],
         };
 
-        DataService.save(newData);
+        // Async save with Firebase sync
+        DataService.save(newData, user || undefined);
         return newData;
       });
     } catch (error) {
@@ -103,23 +116,25 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateDailyTarget = (target: number) => {
+  const updateDailyTarget = async (target: number) => {
     if (!data) return;
+    
     setData((prev) => {
       if (!prev) return prev;
       const newData = { ...prev, user: { ...prev.user, dailyTarget: target } };
-      DataService.save(newData);
+      DataService.save(newData, user || undefined);
       return newData;
     });
   };
 
-  const resetData = () => {
-    const newData = DataService.reset();
+  const resetData = async () => {
+    const newData = await DataService.reset(user || undefined);
     setData(newData);
   };
 
-  const completeOnboarding = (profile: UserProfile, prayers: PrayerCounts) => {
+  const completeOnboarding = async (profile: UserProfile, prayers: PrayerCounts) => {
     if (!data) return;
+    
     const newData: AppData = {
       ...data,
       user: profile,
@@ -131,7 +146,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       },
       history: [],
     };
-    DataService.save(newData);
+    
+    await DataService.save(newData, user || undefined);
     setData(newData);
   };
 

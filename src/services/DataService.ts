@@ -1,72 +1,94 @@
 import { AppData } from '../types';
 import { INITIAL_DATA } from '../constants';
 import { validateAppData } from '../types.validation';
+import { DatabaseService } from './DatabaseService';
+import { FirebaseSyncService } from './FirebaseSyncService';
+import type { User } from '@capacitor-firebase/authentication';
 
 const STORAGE_KEY = 'kaza_takibi_data';
 const MAX_HISTORY_ENTRIES = 1000;
 
 export const DataService = {
   /**
-   * LocalStorage'dan veriyi çeker. Eğer veri yoksa INITIAL_DATA'yı yazar ve onu döner.
-   * (Lazy Initialization)
+   * Veritabanını başlatır ve veriyi çeker.
    */
-  getOrInit: (): AppData => {
+  async initialize(user?: User): Promise<AppData> {
     try {
-      const storedData = localStorage.getItem(STORAGE_KEY);
-      if (storedData) {
-        const parsed = JSON.parse(storedData);
-        const validated = validateAppData(parsed);
-        if (validated) {
-          return validated;
+      // SQLite'ı başlat
+      await DatabaseService.initialize();
+      
+      // Önce local veriyi oku
+      let localData = await DatabaseService.getAll();
+      
+      if (user) {
+        // Firebase ile senkronize et
+        const mergedData = await FirebaseSyncService.mergeData(localData, user);
+        
+        // Eğer merged data farklıysa SQLite'a kaydet
+        if (JSON.stringify(mergedData) !== JSON.stringify(localData)) {
+          await DatabaseService.saveAll(mergedData);
         }
-        console.warn('Invalid data in localStorage, using initial data');
+        
+        return mergedData;
       }
       
-      // Veri yoksa veya geçersizse başlangıç verilerini yaz
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DATA));
-      return INITIAL_DATA;
+      return localData;
     } catch (error) {
-      console.error("Veri okunurken hata oluştu, varsayılan veri kullanılıyor.", error);
+      console.error("Veri okunurken hata oluştu:", error);
       return INITIAL_DATA;
     }
   },
 
   /**
-   * Verilen datayı LocalStorage'a kaydeder.
+   * Verilen datayı kaydeder
    */
-  save: (data: AppData): void => {
+  async save(data: AppData, user?: User): Promise<void> {
     try {
-      // Enforce history limit - keep most recent entries
+      // History limit
       const limitedData = {
         ...data,
         history: data.history?.slice(0, MAX_HISTORY_ENTRIES) ?? []
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(limitedData));
+      
+      // SQLite'a kaydet (her zaman)
+      await DatabaseService.saveAll(limitedData);
+      
+      // Firebase'e kaydet (eğer kullanıcı varsa)
+      if (user) {
+        await FirebaseSyncService.saveUserData(user, limitedData);
+      }
     } catch (error) {
       console.error("Veri kaydedilirken hata oluştu.", error);
     }
   },
 
   /**
-   * Tüm verileri sıfırlar (Test veya ayarlar için)
+   * Tüm verileri sıfırlar
    */
-  reset: (): AppData => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DATA));
+  async reset(user?: User): Promise<AppData> {
+    try {
+      await DatabaseService.reset();
+      
+      if (user) {
+        // Firebase'den de sil
+        await FirebaseSyncService.saveUserData(user, INITIAL_DATA);
+      }
+    } catch (error) {
+      console.error("Reset hatası:", error);
+      localStorage.removeItem(STORAGE_KEY);
+    }
     return INITIAL_DATA;
   },
 
   /**
    * Mevcut veriyi JSON dosyası olarak dışa aktarır.
    */
-  exportToFile: (): void => {
+  exportToFile: async (): Promise<void> => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) {
-        alert('Dışa aktarılacak veri bulunamadı.');
-        return;
-      }
+      const data = await DatabaseService.getAll();
+      const jsonString = JSON.stringify(data, null, 2);
       
-      const blob = new Blob([data], { type: 'application/json' });
+      const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const date = new Date().toISOString().split('T')[0];
       const filename = `kaza-namaz-yedek-${date}.json`;
@@ -85,13 +107,13 @@ export const DataService = {
   },
 
   /**
-   * JSON dosyasından veri içe aktarır ve localStorage'a kaydeder.
+   * JSON dosyasından veri içe aktarır.
    */
-  importFromFile: (file: File): Promise<{ success: boolean; message: string }> => {
+  importFromFile: async (file: File): Promise<{ success: boolean; message: string }> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const content = e.target?.result as string;
           const parsed = JSON.parse(content) as AppData;
@@ -102,7 +124,8 @@ export const DataService = {
             return;
           }
           
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          // Veriyi kaydet
+          await DatabaseService.saveAll(parsed);
           resolve({ success: true, message: 'Veriler başarıyla geri yüklendi. Sayfayı yenileyin.' });
         } catch {
           resolve({ success: false, message: 'Dosya okunamadı veya bozuk.' });

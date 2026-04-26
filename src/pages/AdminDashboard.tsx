@@ -5,6 +5,9 @@ import { HistoryView } from '../components/admin/views/HistoryView';
 import { StatsView } from '../components/admin/views/StatsView';
 import { LibraryView } from '../components/admin/views/LibraryView';
 import { SettingsView } from '../components/admin/views/SettingsView';
+import { DebugPage } from './DebugPage';
+
+const isDebugMode = import.meta.env.VITE_DEBUG_MODE === 'true';
 
 export default function AdminDashboard() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -21,6 +24,8 @@ export default function AdminDashboard() {
         return <LibraryView />;
       case 'settings':
         return <SettingsView />;
+      case 'debug':
+        return <DebugPage />;
       default:
         return <DashboardView />;
     }
