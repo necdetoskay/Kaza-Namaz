@@ -362,12 +362,12 @@ async function migrateFromLocalStorage(): Promise<void> {
 }
 
 /**
- * SQLite'dan tüm veriyi okur — sadece SQLite, fallback yok
+ * SQLite'dan tüm veriyi okur — SQLite başarısız olursa LocalStorage'a düşer
  */
 async function getAllFromSQLite(): Promise<AppData> {
   if (!sqliteDb) {
     console.error('SQLite not initialized');
-    return INITIAL_DATA;
+    return getFromLocalStorage();
   }
 
   try {
@@ -376,15 +376,23 @@ async function getAllFromSQLite(): Promise<AppData> {
     const stats = await DatabaseService.getStats();
     const history = await DatabaseService.getHistory();
 
-    // SQLite boşsa INITIAL_DATA dön — LocalStorage'a bakma
+    // SQLite boşsa veya hata alırsa LocalStorage'a bak
     if (!user || !prayers || !stats) {
+      console.log('SQLite data empty, checking LocalStorage...');
+      const localData = getFromLocalStorage();
+      // LocalStorage'da veri varsa SQLite'a kaydet (migration)
+      if (localData && localData.user && localData.prayers) {
+        await saveAllToSQLite(localData);
+        console.log('Data restored from LocalStorage to SQLite');
+        return localData;
+      }
       return INITIAL_DATA;
     }
 
     return { user, prayers, stats, history };
   } catch (error) {
-    console.error('getAllFromSQLite failed:', error);
-    return INITIAL_DATA;
+    console.error('getAllFromSQLite failed, falling back to LocalStorage:', error);
+    return getFromLocalStorage();
   }
 }
 
