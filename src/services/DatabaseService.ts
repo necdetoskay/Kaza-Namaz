@@ -1,37 +1,50 @@
 import { Capacitor } from '@capacitor/core';
-import { CapacitorSQLite, SQLiteConnection, SQLiteDB } from '@capacitor-community/sqlite';
+import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { AppData, UserProfile, PrayerCounts, AppStats, PrayerLog } from '../types';
 import { INITIAL_DATA } from '../constants';
 
 const DB_NAME = 'kaza_namaz.db';
 const STORAGE_KEY = 'kaza_takibi_data';
 
-let sqliteDb: SQLiteDB | null = null;
+let sqliteDb: SQLiteDBConnection | null = null;
+let isInitialized = false;
 
 export const DatabaseService = {
   /**
    * Veritabanı bağlantısını başlatır ve tabloları oluşturur
    */
   async initialize(): Promise<void> {
+    // Zaten başlatılmışsa tekrar başlatma
+    if (isInitialized && sqliteDb) {
+      console.log('[DEBUG] Database already initialized, skipping');
+      return;
+    }
+
     try {
       // Platform kontrolü
       const isMobile = Capacitor.isNativePlatform();
+      console.log('[DEBUG] Database initialize - isMobile:', isMobile);
 
       if (isMobile) {
         // SQLite bağlantısı oluştur
         const sqlite: SQLiteConnection = new SQLiteConnection(CapacitorSQLite);
+        console.log('[DEBUG] CapacitorSQLite instance created');
+
+        // Önce createConnection, sonra open() — doğru API sırası
+        sqliteDb = await sqlite.createConnection(DB_NAME, false, 'no-encryption', 1, false);
+        console.log('[DEBUG] createConnection successful, calling open()...');
         
-        // Veritabanını aç
-        sqliteDb = await sqlite.open({
-          name: DB_NAME,
-          location: 'default'
-        });
+        await sqliteDb.open();
+        console.log('[DEBUG] sqliteDb.open() successful');
 
         // Tabloları oluştur
         await createTables();
         
         // Migration kontrolü
         await migrateFromLocalStorage();
+        
+        isInitialized = true;
+        console.log('[DEBUG] Database initialization complete');
       } else {
         // Web platformu için LocalStorage kullan
         console.log('Web platform - LocalStorage kullanılıyor');
@@ -52,13 +65,13 @@ export const DatabaseService = {
   /**
    * Tüm verileri okur
    */
-  async getAll(): Promise<AppData> {
+  async getAll(): Promise<AppData | null> {
     const isMobile = Capacitor.isNativePlatform();
 
     if (isMobile && sqliteDb) {
       return await getAllFromSQLite();
     } else {
-      return getFromLocalStorage();
+      return null;
     }
   },
 
@@ -70,7 +83,7 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        const result = await sqliteDb.query('SELECT * FROM user WHERE id = 1');
+        const result = await sqliteDb.query('SELECT * FROM user WHERE id = 1', []);
         if (result.rows && result.rows.length > 0) {
           const row = result.rows.item(0);
           return {
@@ -96,7 +109,7 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        const result = await sqliteDb.query('SELECT * FROM prayers WHERE id = 1');
+        const result = await sqliteDb.query('SELECT * FROM prayers WHERE id = 1', []);
         if (result.rows && result.rows.length > 0) {
           const row = result.rows.item(0);
           return {
@@ -124,7 +137,7 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        const result = await sqliteDb.query('SELECT * FROM stats WHERE id = 1');
+        const result = await sqliteDb.query('SELECT * FROM stats WHERE id = 1', []);
         if (result.rows && result.rows.length > 0) {
           const row = result.rows.item(0);
           return {
@@ -150,7 +163,8 @@ export const DatabaseService = {
     if (isMobile && sqliteDb) {
       try {
         const result = await sqliteDb.query(
-          'SELECT * FROM history ORDER BY timestamp DESC LIMIT 1000'
+          'SELECT * FROM history ORDER BY timestamp DESC LIMIT 1000',
+          []
         );
         if (result.rows && result.rows.length > 0) {
           const history: PrayerLog[] = [];
@@ -178,9 +192,18 @@ export const DatabaseService = {
    */
   async saveAll(data: AppData): Promise<void> {
     const isMobile = Capacitor.isNativePlatform();
+    console.log('[DEBUG] saveAll called - isMobile:', isMobile, 'sqliteDb:', sqliteDb ? 'open' : 'null');
 
     if (isMobile && sqliteDb) {
-      await saveAllToSQLite(data);
+      console.log('[DEBUG] Saving to SQLite...');
+      try {
+        await saveAllToSQLite(data);
+        console.log('[DEBUG] SQLite save successful');
+      } catch (error) {
+        console.error('[ERROR] SQLite save failed:', error);
+      }
+    } else {
+      console.log('[DEBUG] SQLite not available, skipping. isMobile:', isMobile, 'sqliteDb:', sqliteDb ? 'open' : 'null');
     }
     
     // Her durumda LocalStorage'a da kaydet (fallback)
@@ -195,10 +218,9 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        await sqliteDb.run(
+        await sqliteDb.execute(
           `INSERT OR REPLACE INTO user (id, gender, birth_date, start_date, daily_target)
-           VALUES (1, ?, ?, ?, ?)`,
-          [user.gender, user.birthDate, user.startDate, user.dailyTarget]
+           VALUES (1, '${user.gender}', '${user.birthDate}', '${user.startDate}', ${user.dailyTarget})`
         );
       } catch (error) {
         console.error('User save failed:', error);
@@ -214,10 +236,9 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        await sqliteDb.run(
+        await sqliteDb.execute(
           `INSERT OR REPLACE INTO prayers (id, sabah, ogle, ikindi, aksam, yatsi, vitir)
-           VALUES (1, ?, ?, ?, ?, ?, ?)`,
-          [prayers.sabah, prayers.ogle, prayers.ikindi, prayers.aksam, prayers.yatsi, prayers.vitir]
+           VALUES (1, ${prayers.sabah}, ${prayers.ogle}, ${prayers.ikindi}, ${prayers.aksam}, ${prayers.yatsi}, ${prayers.vitir})`
         );
       } catch (error) {
         console.error('Prayers save failed:', error);
@@ -233,10 +254,9 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        await sqliteDb.run(
+        await sqliteDb.execute(
           `INSERT OR REPLACE INTO stats (id, streak, total_completed, last_active_date)
-           VALUES (1, ?, ?, ?)`,
-          [stats.streak, stats.totalCompleted, stats.lastActiveDate]
+           VALUES (1, ${stats.streak}, ${stats.totalCompleted}, '${stats.lastActiveDate}')`
         );
       } catch (error) {
         console.error('Stats save failed:', error);
@@ -252,9 +272,8 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        await sqliteDb.run(
-          `INSERT INTO history (id, timestamp, type, amount) VALUES (?, ?, ?, ?)`,
-          [log.id, log.timestamp, log.type, log.amount]
+        await sqliteDb.execute(
+          `INSERT INTO history (id, timestamp, type, amount) VALUES ('${log.id}', '${log.timestamp}', '${log.type}', ${log.amount})`
         );
       } catch (error) {
         console.error('History add failed:', error);
@@ -270,15 +289,15 @@ export const DatabaseService = {
 
     if (isMobile && sqliteDb) {
       try {
-        await sqliteDb.run('DELETE FROM history');
-        await sqliteDb.run('DELETE FROM user');
-        await sqliteDb.run('DELETE FROM prayers');
-        await sqliteDb.run('DELETE FROM stats');
+        await sqliteDb.execute('DELETE FROM history');
+        await sqliteDb.execute('DELETE FROM user');
+        await sqliteDb.execute('DELETE FROM prayers');
+        await sqliteDb.execute('DELETE FROM stats');
         
         // Varsayılan değerleri ekle
-        await sqliteDb.run(`INSERT INTO user (id) VALUES (1)`);
-        await sqliteDb.run(`INSERT INTO prayers (id) VALUES (1)`);
-        await sqliteDb.run(`INSERT INTO stats (id) VALUES (1)`);
+        await sqliteDb.execute(`INSERT INTO user (id) VALUES (1)`);
+        await sqliteDb.execute(`INSERT INTO prayers (id) VALUES (1)`);
+        await sqliteDb.execute(`INSERT INTO stats (id) VALUES (1)`);
       } catch (error) {
         console.error('Reset failed:', error);
       }
@@ -298,7 +317,7 @@ async function createTables(): Promise<void> {
 
   try {
     // User tablosu
-    await sqliteDb.run(`
+    await sqliteDb.execute(`
       CREATE TABLE IF NOT EXISTS user (
         id INTEGER PRIMARY KEY DEFAULT 1,
         gender TEXT,
@@ -309,7 +328,7 @@ async function createTables(): Promise<void> {
     `);
 
     // Prayers tablosu
-    await sqliteDb.run(`
+    await sqliteDb.execute(`
       CREATE TABLE IF NOT EXISTS prayers (
         id INTEGER PRIMARY KEY DEFAULT 1,
         sabah INTEGER DEFAULT 720,
@@ -322,7 +341,7 @@ async function createTables(): Promise<void> {
     `);
 
     // Stats tablosu
-    await sqliteDb.run(`
+    await sqliteDb.execute(`
       CREATE TABLE IF NOT EXISTS stats (
         id INTEGER PRIMARY KEY DEFAULT 1,
         streak INTEGER DEFAULT 0,
@@ -332,7 +351,7 @@ async function createTables(): Promise<void> {
     `);
 
     // History tablosu
-    await sqliteDb.run(`
+    await sqliteDb.execute(`
       CREATE TABLE IF NOT EXISTS history (
         id TEXT PRIMARY KEY,
         timestamp TEXT NOT NULL,
@@ -342,10 +361,11 @@ async function createTables(): Promise<void> {
     `);
 
     // Varsayılan satırları ekle (yoksa)
-    await sqliteDb.run(`INSERT OR IGNORE INTO user (id) VALUES (1)`);
-    await sqliteDb.run(`INSERT OR IGNORE INTO prayers (id) VALUES (1)`);
-    await sqliteDb.run(`INSERT OR IGNORE INTO stats (id) VALUES (1)`);
+    await sqliteDb.execute(`INSERT OR IGNORE INTO user (id) VALUES (1)`);
+    await sqliteDb.execute(`INSERT OR IGNORE INTO prayers (id) VALUES (1)`);
+    await sqliteDb.execute(`INSERT OR IGNORE INTO stats (id) VALUES (1)`);
 
+    console.log('[DEBUG] Tables created successfully');
   } catch (error) {
     console.error('Table creation failed:', error);
     throw error;
@@ -353,8 +373,7 @@ async function createTables(): Promise<void> {
 }
 
 /**
- * LocalStorage migration — kullanılmıyor, sadece SQLite var
- * @deprecated
+ * LocalStorage migration
  */
 async function migrateFromLocalStorage(): Promise<void> {
   // SQLite-only mode — LocalStorage migration yok
@@ -362,37 +381,34 @@ async function migrateFromLocalStorage(): Promise<void> {
 }
 
 /**
- * SQLite'dan tüm veriyi okur — SQLite başarısız olursa LocalStorage'a düşer
+ * SQLite'dan tüm veriyi okur — veri yoksa null döner
  */
-async function getAllFromSQLite(): Promise<AppData> {
+async function getAllFromSQLite(): Promise<AppData | null> {
+  console.log('[DEBUG] getAllFromSQLite called');
+  
   if (!sqliteDb) {
-    console.error('SQLite not initialized');
-    return getFromLocalStorage();
+    console.error('[DEBUG] SQLite not initialized');
+    return null;
   }
 
   try {
+    console.log('[DEBUG] Reading from SQLite...');
     const user = await DatabaseService.getUser();
     const prayers = await DatabaseService.getPrayers();
     const stats = await DatabaseService.getStats();
     const history = await DatabaseService.getHistory();
+    console.log('[DEBUG] SQLite read complete - user:', !!user, 'prayers:', !!prayers, 'stats:', !!stats);
 
-    // SQLite boşsa veya hata alırsa LocalStorage'a bak
+    // SQLite boşsa null döner
     if (!user || !prayers || !stats) {
-      console.log('SQLite data empty, checking LocalStorage...');
-      const localData = getFromLocalStorage();
-      // LocalStorage'da veri varsa SQLite'a kaydet (migration)
-      if (localData && localData.user && localData.prayers) {
-        await saveAllToSQLite(localData);
-        console.log('Data restored from LocalStorage to SQLite');
-        return localData;
-      }
-      return INITIAL_DATA;
+      console.log('[DEBUG] SQLite data empty');
+      return null;
     }
 
     return { user, prayers, stats, history };
   } catch (error) {
-    console.error('getAllFromSQLite failed, falling back to LocalStorage:', error);
-    return getFromLocalStorage();
+    console.error('[DEBUG] getAllFromSQLite failed:', error);
+    return null;
   }
 }
 
@@ -408,7 +424,7 @@ async function saveAllToSQLite(data: AppData): Promise<void> {
     await DatabaseService.saveStats(data.stats);
     
     // History'yi temizle ve yeniden ekle
-    await sqliteDb.run('DELETE FROM history');
+    await sqliteDb.execute('DELETE FROM history');
     for (const log of data.history.slice(0, 1000)) {
       await DatabaseService.addHistoryLog(log);
     }

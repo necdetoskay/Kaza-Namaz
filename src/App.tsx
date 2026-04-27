@@ -31,8 +31,8 @@ function AppRouter() {
     return <LoginPage />;
   }
 
-  // Logged in but no profile (first time)
-  if (data && !data.user.gender) {
+  // Logged in but no profile (first time) or no data at all
+  if (!data || !data.user.gender) {
     return <OnboardingPage />;
   }
 

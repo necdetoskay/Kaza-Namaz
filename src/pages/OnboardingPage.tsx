@@ -1,9 +1,10 @@
 import { useState, type ChangeEvent, type FormEvent, useRef } from 'react';
-import { Sparkles, Calculator, Calendar, User, Leaf, Upload } from 'lucide-react';
+import { Sparkles, Calculator, Calendar, User, Leaf, Upload, Settings } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
 import { PrayerCounts, UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { DataService } from '../services/DataService';
+import AdminDashboard from './AdminDashboard';
 
 export default function OnboardingPage() {
   const { completeOnboarding } = useStore();
@@ -12,6 +13,13 @@ export default function OnboardingPage() {
   const [startDate, setStartDate] = useState('');
   const [importMessage, setImportMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // URL'de settings varsa ayarlara git
+  const goToSettings = typeof window !== 'undefined' && window.location.search.includes('settings=true');
+
+  if (goToSettings) {
+    return <AdminDashboard />;
+  }
 
   const handleDateChange = (e: ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     let val = e.target.value;
@@ -119,6 +127,12 @@ export default function OnboardingPage() {
             <Leaf className="text-primary w-8 h-8" />
             <h1 className="font-headline font-extrabold text-2xl tracking-tighter text-primary">Kaza Takibi</h1>
           </div>
+          <a
+            href="/?settings=true"
+            className="ml-auto p-2 rounded-full hover:bg-surface-container transition-colors"
+          >
+            <Settings className="w-6 h-6 text-tertiary" />
+          </a>
         </header>
 
         <main className="flex-1 overflow-y-auto px-6 pt-6 pb-12 flex flex-col z-10 no-scrollbar">

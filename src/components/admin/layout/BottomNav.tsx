@@ -1,4 +1,4 @@
-import { Home, BarChart2, BookOpen, User, History, Bug } from 'lucide-react';
+import { Home, BarChart2, BookOpen, Settings, History, Bug } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 
 interface BottomNavProps {
@@ -14,7 +14,7 @@ export function BottomNav({ activeView, onNavigate }: BottomNavProps) {
     { id: 'history', label: 'Geçmiş', icon: History },
     { id: 'stats', label: 'İstatistik', icon: BarChart2 },
     { id: 'library', label: 'Kütüphane', icon: BookOpen },
-    { id: 'settings', label: 'Profil', icon: User },
+    { id: 'settings', label: 'Ayarlar', icon: Settings },
   ];
 
   const debugItem = { id: 'debug', label: 'Debug', icon: Bug };

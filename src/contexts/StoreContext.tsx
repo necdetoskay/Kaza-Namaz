@@ -28,6 +28,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         setData(initialData);
       } catch (error) {
         console.error('Store initialization failed:', error);
+        setData(null);
       } finally {
         setIsLoading(false);
       }

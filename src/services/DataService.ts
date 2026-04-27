@@ -1,5 +1,4 @@
 import { AppData } from '../types';
-import { INITIAL_DATA } from '../constants';
 import { validateAppData } from '../types.validation';
 import { DatabaseService } from './DatabaseService';
 import { FirebaseSyncService } from './FirebaseSyncService';
@@ -11,8 +10,9 @@ const MAX_HISTORY_ENTRIES = 1000;
 export const DataService = {
   /**
    * Veritabanını başlatır ve veriyi çeker.
+   * Veri yoksa null döner.
    */
-  async initialize(user?: User): Promise<AppData> {
+  async initialize(user?: User): Promise<AppData | null> {
     try {
       // SQLite'ı başlat
       await DatabaseService.initialize();
@@ -25,7 +25,7 @@ export const DataService = {
         const mergedData = await FirebaseSyncService.mergeData(localData, user);
         
         // Eğer merged data farklıysa SQLite'a kaydet
-        if (JSON.stringify(mergedData) !== JSON.stringify(localData)) {
+        if (!localData || JSON.stringify(mergedData) !== JSON.stringify(localData)) {
           await DatabaseService.saveAll(mergedData);
         }
         
@@ -35,7 +35,7 @@ export const DataService = {
       return localData;
     } catch (error) {
       console.error("Veri okunurken hata oluştu:", error);
-      return INITIAL_DATA;
+      return null;
     }
   },
 

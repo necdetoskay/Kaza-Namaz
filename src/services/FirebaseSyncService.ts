@@ -2,7 +2,6 @@ import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/fires
 import type { User } from '@capacitor-firebase/authentication';
 import { db } from '../lib/firebase';
 import { AppData } from '../types';
-import { INITIAL_DATA } from '../constants';
 
 const USER_DATA_PATH = (uid: string) => `users/${uid}/data`;
 
@@ -68,8 +67,19 @@ export const FirebaseSyncService = {
    * Verileri birleştirir (local + remote)
    * Son güncelleme tarihine göre hangisinin öncelikli olduğuna karar verir
    */
-  async mergeData(localData: AppData, user: User): Promise<AppData> {
+  async mergeData(localData: AppData | null, user: User): Promise<AppData> {
     try {
+      // LocalData null ise onboarding data olarak başlat
+      if (!localData) {
+        const newData: AppData = {
+          user: { gender: null, birthDate: null, startDate: null, dailyTarget: 5 },
+          prayers: { sabah: 0, ogle: 0, ikindi: 0, aksam: 0, yatsi: 0, vitir: 0 },
+          stats: { streak: 0, totalCompleted: 0, lastActiveDate: new Date().toISOString() },
+          history: []
+        };
+        return newData;
+      }
+
       const remoteData = await this.getUserData(user);
       
       if (!remoteData) {
