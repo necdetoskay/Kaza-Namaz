@@ -4,6 +4,8 @@ import { validateAppData } from '../types.validation';
 import { DatabaseService } from './DatabaseService';
 import { FirebaseSyncService } from './FirebaseSyncService';
 import type { User } from '@capacitor-firebase/authentication';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 
 const STORAGE_KEY = 'kaza_takibi_data';
 const MAX_HISTORY_ENTRIES = 1000;
@@ -82,24 +84,40 @@ export const DataService = {
 
   /**
    * Mevcut veriyi JSON dosyası olarak dışa aktarır.
+   * Web'de: tarayıcı download, Native'de: Filesystem API
    */
   exportToFile: async (): Promise<void> => {
     try {
       const data = await DatabaseService.getAll();
       const jsonString = JSON.stringify(data, null, 2);
-      
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
       const date = new Date().toISOString().split('T')[0];
       const filename = `kaza-namaz-yedek-${date}.json`;
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      const isMobile = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+
+      if (isMobile) {
+        // Native: Filesystem API kullan
+        await Filesystem.writeFile({
+          path: filename,
+          data: jsonString,
+          directory: Directory.Documents,
+          // Note: recursive mkdir otomatik
+        });
+        
+        // Kullanıcıya bildir
+        alert(`Yedek kaydedildi: ${filename}`);
+      } else {
+        // Web: Blob download
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } catch (error) {
       console.error('Dışa aktarma hatası:', error);
       alert('Veri dışa aktarılamadı.');
