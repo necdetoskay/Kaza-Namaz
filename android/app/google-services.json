@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "425002186284",
+    "project_id": "auth-5fa37",
+    "storage_bucket": "auth-5fa37.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:425002186284:android:84abcf523e88fcc31b4389",
+        "android_client_info": {
+          "package_name": "com.kazanamaz.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "425002186284-13vjl37a4mh2ptd6q9tts0pp7ripm3p7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kazanamaz.app",
+            "certificate_hash": "32fb72d73c162f3ed59afb3f8ac2973d7cb1591d"
+          }
+        },
+        {
+          "client_id": "425002186284-bi683mfff71ath8vkmiovr3s3hnstdlf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgCAGhEoE2koZbeNWKyl93pkeCM3IIwsA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "425002186284-bi683mfff71ath8vkmiovr3s3hnstdlf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
