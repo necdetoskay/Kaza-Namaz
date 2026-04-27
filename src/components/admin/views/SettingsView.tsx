@@ -6,7 +6,7 @@ import { DatabaseService } from '../../../services/DatabaseService';
 
 export function SettingsView() {
   const { data, updateDailyTarget, resetData } = useStore();
-  const [target, setTarget] = useState(data.user.dailyTarget.toString());
+  const [target, setTarget] = useState(data?.user?.dailyTarget?.toString() ?? '5');
   const [saved, setSaved] = useState(false);
   const [importMessage, setImportMessage] = useState<{type: 'success' | 'error'; text: string} | null>(null);
   const [sqliteStatus, setSqliteStatus] = useState<{ok: boolean; message: string} | null>(null);

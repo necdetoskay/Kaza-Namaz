@@ -65,19 +65,18 @@ export const DataService = {
   /**
    * Tüm verileri sıfırlar
    */
-  async reset(user?: User): Promise<AppData> {
+  async reset(user?: User): Promise<null> {
     try {
       await DatabaseService.reset();
       
       if (user) {
         // Firebase'den de sil
-        await FirebaseSyncService.saveUserData(user, INITIAL_DATA);
+        await FirebaseSyncService.deleteUserData(user);
       }
     } catch (error) {
       console.error("Reset hatası:", error);
-      localStorage.removeItem(STORAGE_KEY);
     }
-    return INITIAL_DATA;
+    return null;
   },
 
   /**

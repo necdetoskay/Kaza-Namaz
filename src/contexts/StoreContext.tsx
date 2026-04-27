@@ -129,8 +129,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetData = async () => {
-    const newData = await DataService.reset(user || undefined);
-    setData(newData);
+    await DataService.reset(user || undefined);
+    setData(null);
   };
 
   const completeOnboarding = async (profile: UserProfile, prayers: PrayerCounts) => {

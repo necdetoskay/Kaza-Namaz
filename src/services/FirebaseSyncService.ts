@@ -24,6 +24,20 @@ export const FirebaseSyncService = {
   },
 
   /**
+   * Kullanıcı verisini Firestore'dan siler
+   */
+  async deleteUserData(user: User): Promise<void> {
+    try {
+      const { deleteDoc } = await import('firebase/firestore');
+      const userRef = doc(db, USER_DATA_PATH(user.uid));
+      await deleteDoc(userRef);
+      console.log('Data deleted from Firestore');
+    } catch (error) {
+      console.error('Firestore delete error:', error);
+    }
+  },
+
+  /**
    * Kullanıcı verisini Firestore'dan çeker
    */
   async getUserData(user: User): Promise<AppData | null> {
